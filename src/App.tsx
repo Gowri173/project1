@@ -1,165 +1,115 @@
-import { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI } from "@google/genai";
-import { Send, Bot, User, Loader2, Sparkles } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-
-// Initialize Gemini
-const ai = new GoogleGenAI({ 
-  apiKey: process.env.GEMINI_API_KEY || '' 
-});
-
-interface Message {
-  role: 'user' | 'ai';
-  content: string;
-  id: string;
-}
+import { useState } from 'react';
+import MusicPlayer from './components/MusicPlayer';
+import SnakeGame from './components/SnakeGame';
+import { TRACKS } from './constants';
+import { motion } from 'motion/react';
+import { Disc, Activity, Terminal } from 'lucide-react';
 
 export default function App() {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'ai', content: 'Hello! I am your Gemini-powered assistant. How can I help you today?', id: 'initial' }
-  ]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
-
-    const userMessage: Message = {
-      role: 'user',
-      content: input,
-      id: Date.now().toString()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
-
-    try {
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: input,
-      });
-
-      const aiMessage: Message = {
-        role: 'ai',
-        content: response.text || 'Sorry, I couldn\'t generate a response.',
-        id: (Date.now() + 1).toString()
-      };
-
-      setMessages(prev => [...prev, aiMessage]);
-    } catch (error) {
-      console.error('Error calling Gemini:', error);
-      setMessages(prev => [...prev, {
-        role: 'ai',
-        content: 'Error: Could not connect to Gemini. Please check your API key in the environmental secrets.',
-        id: (Date.now() + 1).toString()
-      }]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+  const currentTrack = TRACKS[currentTrackIndex];
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans selection:bg-indigo-500/30">
-      {/* Header */}
-      <header className="fixed top-0 w-full z-50 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-800 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-indigo-500/10 rounded-xl border border-indigo-500/20">
-            <Bot className="w-5 h-5 text-indigo-400" />
-          </div>
-          <h1 className="text-lg font-bold tracking-tight text-white">Gemini Brain</h1>
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1 bg-neutral-900 rounded-full border border-neutral-800">
-          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-xs font-medium text-neutral-400 uppercase tracking-widest">Active</span>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#050505] text-neutral-100 font-sans selection:bg-cyan-500/30 overflow-x-hidden relative">
+      {/* Dynamic Background Gradients */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <motion.div 
+          animate={{ 
+            scale: [1, 1.2, 1],
+            opacity: [0.3, 0.5, 0.3],
+          }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute -top-1/4 -left-1/4 w-full h-full rounded-full blur-[120px]"
+          style={{ backgroundColor: `${currentTrack.color}20` }}
+        />
+        <motion.div 
+          animate={{ 
+            scale: [1, 1.1, 1],
+            opacity: [0.2, 0.4, 0.2],
+          }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          className="absolute -bottom-1/4 -right-1/4 w-full h-full rounded-full blur-[120px]"
+          style={{ backgroundColor: `${currentTrack.color}15` }}
+        />
+      </div>
 
-      {/* Main Content */}
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 pt-24 pb-32">
-        <div className="space-y-8">
-          <AnimatePresence initial={false}>
-            {messages.map((message) => (
-              <motion.div
-                key={message.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className={`flex gap-4 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
-              >
-                <div className={`flex-shrink-0 w-10 h-10 rounded-2xl flex items-center justify-center border ${
-                  message.role === 'ai' 
-                    ? 'bg-neutral-900 border-neutral-800 text-indigo-400' 
-                    : 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.3)]'
-                }`}>
-                  {message.role === 'ai' ? <Sparkles className="w-5 h-5" /> : <User className="w-5 h-5" />}
-                </div>
-                <div className={`max-w-[80%] rounded-3xl px-6 py-4 text-base leading-relaxed ${
-                  message.role === 'user'
-                    ? 'bg-neutral-800 text-white rounded-tr-none'
-                    : 'bg-neutral-900/50 border border-neutral-800 text-neutral-100 rounded-tl-none'
-                }`}>
-                  {message.content}
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-          {isLoading && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex gap-4"
-            >
-              <div className="w-10 h-10 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-indigo-400">
-                <Loader2 className="w-5 h-5 animate-spin" />
-              </div>
-              <div className="bg-neutral-900/50 border border-neutral-800 rounded-3xl rounded-tl-none px-6 py-4">
-                <span className="text-neutral-400 italic">Gemini is thinking...</span>
-              </div>
-            </motion.div>
-          )}
-          <div ref={messagesEndRef} />
+      {/* Navigation / Header */}
+      <nav className="relative z-50 flex items-center justify-between px-8 py-6 border-b border-white/5 bg-black/20 backdrop-blur-md">
+        <div className="flex items-center gap-4">
+          <div className="p-2 bg-white/5 border border-white/10 rounded-xl">
+             <Activity className="w-6 h-6 text-cyan-400 animate-pulse" />
+          </div>
+          <div>
+            <h1 className="text-xl font-black italic tracking-tighter uppercase leading-none">Neon Snake</h1>
+            <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-bold">Protocol v3.0 // Synthwave Edition</span>
+          </div>
+        </div>
+        
+        <div className="hidden md:flex items-center gap-6">
+           <div className="flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/5 rounded-full">
+              <Terminal className="w-3 h-3 text-neutral-500" />
+              <span className="text-[10px] font-mono text-neutral-400">SESSION_ID: {Math.random().toString(36).substring(7).toUpperCase()}</span>
+           </div>
+        </div>
+      </nav>
+
+      <main className="relative z-10 w-full max-w-7xl mx-auto px-6 py-12 flex flex-col items-center">
+        {/* Game Section */}
+        <section className="w-full flex-1 flex flex-col items-center mb-20">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-[500px]"
+          >
+            <SnakeGame />
+          </motion.div>
+        </section>
+
+        {/* Music Player Section (Floating Bottom) */}
+        <div className="fixed bottom-0 left-0 w-full p-6 md:p-12 z-50">
+          <motion.div 
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <MusicPlayer 
+              currentTrackIndex={currentTrackIndex}
+              setCurrentTrackIndex={setCurrentTrackIndex}
+            />
+          </motion.div>
+          
+          <div className="flex justify-center mt-4">
+             <p className="text-[10px] text-neutral-600 uppercase tracking-[0.3em] font-medium flex items-center gap-2">
+                <Disc className="w-3 h-3 animate-spin-slow" /> Playing: {currentTrack.title} — {currentTrack.artist}
+             </p>
+          </div>
         </div>
       </main>
 
-      {/* Input Area */}
-      <footer className="fixed bottom-0 w-full bg-neutral-950/80 backdrop-blur-md px-4 py-6 border-t border-neutral-800">
-        <form 
-          onSubmit={handleSubmit}
-          className="max-w-4xl mx-auto relative group"
-        >
-          <input
-            id="chat-input"
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask Gemini anything..."
-            className="w-full bg-neutral-900 border border-neutral-800 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 rounded-2xl py-4 pl-6 pr-16 text-white placeholder-neutral-500 outline-none transition-all duration-300"
-            disabled={isLoading}
-          />
-          <button
-            id="send-button"
-            type="submit"
-            disabled={!input.trim() || isLoading}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-neutral-800 disabled:text-neutral-600 text-white rounded-xl transition-all duration-200 active:scale-95 shadow-lg shadow-indigo-500/10"
-          >
-            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-          </button>
-        </form>
-        <p className="text-center text-[10px] text-neutral-600 mt-4 uppercase tracking-[0.2em] font-medium">
-          Powered by Google Gemini 3 Flash
-        </p>
-      </footer>
+      {/* Decorative Side Elements */}
+      <div className="hidden xl:block fixed left-12 top-1/2 -translate-y-1/2 vertical-text opacity-20 pointer-events-none">
+        <span className="text-[10px] uppercase font-black tracking-[0.5em] text-white">REACTIVE NEON ENGINE // EST. 2026</span>
+      </div>
+      <div className="hidden xl:block fixed right-12 top-1/2 -translate-y-1/2 vertical-text opacity-20 rotate-180 pointer-events-none">
+        <span className="text-[10px] uppercase font-black tracking-[0.5em] text-white">LOW LATENCY SYNTHESIS // DIGITAL VOID</span>
+      </div>
     </div>
   );
 }
+
+// Add these to index.css if not using tailwind 4 theme block, but I'll add them to the App file for quick styling
+const style = document.createElement('style');
+style.textContent = `
+  .vertical-text {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+  @keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .animate-spin-slow {
+    animation: spin-slow 8s linear infinite;
+  }
+`;
+document.head.append(style);
